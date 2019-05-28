@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ArcadeMgr"
         mc:Ignorable="d"
-        Title="V Arcade Mgr" Height="225.453" Width="359.99" WindowStartupLocation="CenterScreen" WindowState="Minimized" Icon="Arcade.ico">
+        Title="V Arcade Mgr" Height="273.062" Width="359.99" WindowStartupLocation="CenterScreen" WindowState="Minimized" Icon="Arcade.ico">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition/>
@@ -20,6 +20,7 @@
         <Label x:Name="labelGKeypressVal" Content="" Height="25" Margin="91,70,10,0" VerticalAlignment="Top"/>
         <Label x:Name="labelLUptimeVal" Content="" Height="25" Margin="91,130,10,0" VerticalAlignment="Top"/>
         <Label x:Name="labelLKeypressVal" Content="0" Height="25" Margin="91,155,10,0" VerticalAlignment="Top"/>
+        <Button x:Name="buttonExport" Content="Export to CSV" HorizontalAlignment="Left" Height="22" Margin="10,205,0,0" VerticalAlignment="Top" Width="96" ToolTip="Export key data to keystat.csv file" Click="ButtonExport_Click"/>
 
     </Grid>
 </Window>

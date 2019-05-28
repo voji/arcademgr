@@ -87,11 +87,11 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="InterceptKeys.cs" />
     <Compile Include="config\ConfigHelper.cs" />
     <Compile Include="config\KeyMap.cs" />
     <Compile Include="config\Settings.cs" />
     <Compile Include="config\Stats.cs" />
-    <Compile Include="KeyboardHook.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>

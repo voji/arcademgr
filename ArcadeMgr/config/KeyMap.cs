@@ -9,7 +9,6 @@ namespace ArcadeMgr.config
 {
     public class KeyMap
     {
-        public Keys key;
         public string name;
         public string group;
         public string subgroup;
@@ -17,18 +16,16 @@ namespace ArcadeMgr.config
 
         public KeyMap() { }
 
-        public KeyMap(Keys key, string name, string group, string subgroup, string message)
-        {
-            this.key = key;            
+        public KeyMap(string name, string group, string subgroup, string message)
+        {            
             this.name = name;
             this.group = group;
             this.subgroup = subgroup;
             this.message = message;
         }        
 
-        public KeyMap(Keys key, string name, string group, string subgroup)
+        public KeyMap(string name, string group, string subgroup)
         {
-            this.key = key;
             this.name = name;
             this.group = group;
             this.subgroup = subgroup;
