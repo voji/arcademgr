@@ -20,10 +20,10 @@ namespace ArcadeMgr.config
             portName = "COMX";
             baudRate = 115200;
             startMessage = "n"; //on
-            startMessage = "f"; //off
+            stopMessage = "f"; //off
             //default jpac2 keymap
-            keyMap[Keys.D5] = new KeyMap("P1", "Coin", "Coin", "C"); //coin
-            keyMap[Keys.D6] = new KeyMap("P1", "Coin", "Coin", "C"); //coin
+            keyMap[Keys.D5] = new KeyMap("P1", "Coin", "Coin", "c"); //coin
+            keyMap[Keys.D6] = new KeyMap("P1", "Coin", "Coin", "c"); //coin
             keyMap[Keys.D1] = new KeyMap("P1", "Start", "Start");
             keyMap[Keys.D2] = new KeyMap("P2", "Start", "Start");
             keyMap[Keys.Up] = new KeyMap("P1", "Up", "Move");

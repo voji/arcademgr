@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ArcadeMgr"
         mc:Ignorable="d"
-        Title="V Arcade Mgr" Height="273.062" Width="359.99" WindowStartupLocation="CenterScreen" WindowState="Minimized" Icon="Arcade.ico">
+        Title="Arcade Mgr 1.0.1" Height="273.062" Width="359.99" WindowStartupLocation="CenterScreen" WindowState="Minimized" Icon="Arcade.ico">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition/>

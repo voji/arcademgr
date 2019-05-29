@@ -27,7 +27,7 @@ namespace ArcadeMgr
     public partial class MainWindow : Window
     {
         static SerialPort port;
-        static DateTime startTime = DateTime.Now;        
+        static DateTime startTime = DateTime.Now;
         static Stats stats;
         static Settings settings;
         static TimeSpan globalTimeElapsed;
@@ -35,31 +35,49 @@ namespace ArcadeMgr
         static long localKeypress;
         private static DispatcherTimer timer;
         private static InterceptKeys.LowLevelKeyboardProc lowLevelKeyboardProcessor = KeyDownCallback;
+        private static KeyMap[] keyMap = null;
         public MainWindow()
         {
+            System.Windows.Application.Current.DispatcherUnhandledException += Dispatcher_UnhandledException;
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             InitializeComponent();
             settings = ConfigHelper.LoadSettings();
             if (settings == null)
             {
-                handleError("Default configuration file created, please review it. Application now exit.", null);
+                handleError("Default configuration file created, please review it. Application now exit.", null, true);
             }
             if (!string.IsNullOrEmpty(settings.portName))
             {
                 try
                 {
-                    port = new SerialPort(settings.portName, settings.baudRate);                
+                    port = new SerialPort(settings.portName, settings.baudRate);
                     port.Open();
                 } catch (Exception ex)
                 {
-                    handleError("Unable to open COMmunication port. See exception.log from details. Application now exit.", ex);
+                    handleError("Unable to open COMmunication port. See exception.log from details. Application now exit.", ex, true);
                 }
-                
+
             }
             string startMessage = settings.startMessage;
-            if (port!= null && !string.IsNullOrEmpty(startMessage))
+            if (port != null && !string.IsNullOrEmpty(startMessage))
             {
                 port.Write(startMessage);
             }
+            //populate keymap
+            int maxKeyCode = 0;
+            foreach (Keys key in settings.keyMap.Keys)
+            {
+                int keyCode = (int)key;
+                maxKeyCode = Math.Max(maxKeyCode, keyCode);
+            }
+            keyMap = new KeyMap[maxKeyCode + 1];
+
+            foreach (KeyValuePair<Keys, KeyMap> keyRec in settings.keyMap)
+            {
+                int keyCode = (int)keyRec.Key;
+                keyMap[keyCode] = keyRec.Value;
+            }
+
             stats = ConfigHelper.LoadStats();
             globalTimeElapsed = TimeSpan.FromSeconds(stats.seconds);
             globalKeypress = stats.globalKeyPressCount();
@@ -69,25 +87,26 @@ namespace ArcadeMgr
             };
             timer.Tick += Timer_Tick;
             timer.Stop();
-            InterceptKeys.SetHook(lowLevelKeyboardProcessor);         
+            InterceptKeys.SetHook(lowLevelKeyboardProcessor);
             AppDomain.CurrentDomain.ProcessExit += new EventHandler(OnProcessExit);
             this.StateChanged += MainWindow_StateChanged;
         }
 
+      
         private void MainWindow_StateChanged(object sender, EventArgs e)
         {
             switch (this.WindowState)
             {
                 case WindowState.Maximized:
                     Timer_Tick(null, null);
-                    timer.Start();                    
+                    timer.Start();
                     break;
                 case WindowState.Minimized:
                     timer.Stop();
                     break;
                 case WindowState.Normal:
                     Timer_Tick(null, null);
-                    timer.Start();                    
+                    timer.Start();
                     break;
             }
         }
@@ -113,7 +132,7 @@ namespace ArcadeMgr
             timeSpan.Seconds
             };
             return String.Format("{0} day {1} hours {2} minutes {3} seconds", args);
-            
+
         }
 
         static void OnProcessExit(object sender, EventArgs e)
@@ -127,7 +146,18 @@ namespace ArcadeMgr
             DateTime endTime = DateTime.Now;
             TimeSpan totalTimeTaken = endTime.Subtract(startTime);
             stats.seconds += (long)totalTimeTaken.TotalSeconds;
-            ConfigHelper.SaveStats(stats);            
+            for (int i = 0; i < keyMap.Length; i++)
+            {
+                KeyMap currentKeymap = keyMap[i];
+                if (currentKeymap != null && currentKeymap.count > 0)
+                {
+                    long currentKeyCount;
+                    Keys key = (Keys)i;
+                    stats.keyStats.TryGetValue(key, out currentKeyCount);
+                    stats.keyStats[key] = currentKeyCount + currentKeymap.count;
+                }
+            }
+            ConfigHelper.SaveStats(stats);
         }
 
         public static IntPtr KeyDownCallback(int nCode, IntPtr wParam, IntPtr lParam)
@@ -135,26 +165,33 @@ namespace ArcadeMgr
             if (nCode >= 0 && (wParam == (IntPtr)InterceptKeys.WM_KEYDOWN || wParam == (IntPtr)InterceptKeys.WM_SYSKEYDOWN))
             {
                 int vkCode = Marshal.ReadInt32(lParam);
-                Keys key = (Keys)vkCode;
-                //Console.WriteLine(key);
-                KeyMap keyMap = null;
-                if (settings.keyMap.TryGetValue(key, out keyMap))
+                KeyMap mapItem = keyMap[vkCode];
+                //Console.WriteLine((Keys)vkCode);
+                if (mapItem != null)
                 {
-                    string message = keyMap.message;
+                    string message = mapItem.message;
                     if (port != null && !string.IsNullOrEmpty(message))
                     {
                         port.Write(message);
                     }
-                }                
-                long currentKeyCount;
-                stats.keyStats.TryGetValue(key, out currentKeyCount);
-                stats.keyStats[key] = currentKeyCount + 1;
-                localKeypress += 1;
+                    mapItem.count++;
+                    localKeypress++;
+                }
             }
             return InterceptKeys.handleHookCallback(nCode, wParam, lParam);
-        }        
+        }
 
-        void handleError(String message, Exception ex)
+        void Dispatcher_UnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e) {
+            handleError("Unhandled error", e.Exception, false);
+        }
+
+        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            handleError("Unhandled error", (Exception)e.ExceptionObject, false);
+        }
+
+
+        public static void handleError(String message, Exception ex, bool terminate)
         {
             if (ex != null) {
                 using (StreamWriter writer = new StreamWriter("exception.log", false))
@@ -176,32 +213,41 @@ namespace ArcadeMgr
                                          "ArcadeMgrError",
                                          MessageBoxButton.OK,
                                          MessageBoxImage.Error);
-            Environment.Exit(0);
+            if (terminate)
+            {
+                Environment.Exit(0);
+            }
         }
 
         private void ButtonExport_Click(object sender, RoutedEventArgs e)
         {
-           using (StreamWriter file = new StreamWriter(@"keystat.csv", false))
-           {
-                foreach (Keys key in settings.keyMap.Keys)
+            try
+            {
+                using (StreamWriter file = new StreamWriter(@"keystat.csv", false))
                 {
-                    KeyMap keyMap = settings.keyMap[key];
-                    string[] statData = new string[5];
-                    statData[0] = key.ToString();
-                    statData[1] = keyMap.name;
-                    statData[2] = keyMap.group;
-                    statData[3] = keyMap.subgroup;
-                    long count;
-                    stats.keyStats.TryGetValue(key, out count);
-                    statData[4] = count.ToString();
-                    String line = createCsvLine(statData);
-                    file.WriteLine(line);
+                    foreach (Keys key in settings.keyMap.Keys)
+                    {
+                        KeyMap keyMap = settings.keyMap[key];
+                        string[] statData = new string[5];
+                        statData[0] = key.ToString();
+                        statData[1] = keyMap.name;
+                        statData[2] = keyMap.group;
+                        statData[3] = keyMap.subgroup;
+                        long count;
+                        stats.keyStats.TryGetValue(key, out count);
+                        statData[4] = (keyMap.count + count).ToString();
+                        String line = createCsvLine(statData);
+                        file.WriteLine(line);
+                    }
                 }
+                System.Windows.MessageBox.Show("keystat.csv file created",
+                                              "ArcadeMgr",
+                                              MessageBoxButton.OK,
+                                              MessageBoxImage.Information);
+            } catch (Exception ex)
+            {
+                handleError("Unable to write file (keystat.csv)", ex, false);
             }
-            System.Windows.MessageBox.Show("keystat.csv file created",
-                                          "ArcadeMgr",
-                                          MessageBoxButton.OK,
-                                          MessageBoxImage.Information);
         }
 
         private string createCsvLine(string[] cparams)

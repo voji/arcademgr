@@ -19,47 +19,68 @@ namespace ArcadeMgr.config
 
     public static void SaveStats(Stats stats)
         {
-            using (var writer = XmlWriter.Create(StatsFileName, xmlWriterSettings))
+            try
             {
-                IExtendedXmlSerializer serializer = new ConfigurationContainer().Create();
-                serializer.Serialize(writer, stats);
-                writer.Flush();
+                using (var writer = XmlWriter.Create(StatsFileName, xmlWriterSettings))
+                {
+                    IExtendedXmlSerializer serializer = new ConfigurationContainer().Create();
+                    serializer.Serialize(writer, stats);
+                    writer.Flush();
+                }
+            } catch (Exception e)
+            {
+                MainWindow.handleError("Error during write file (stats.xml)", e, false);
             }
         }
 
         public static Stats LoadStats()
         {
             Stats result = null;
-            if (File.Exists(StatsFileName))
+            try
             {
-                using (XmlReader reader = XmlReader.Create(StatsFileName))
+                if (File.Exists(StatsFileName))
                 {
-                    IExtendedXmlSerializer serializer = new ConfigurationContainer().Create();
-                    result = (Stats)serializer.Deserialize(reader);
-                }                
+                    using (XmlReader reader = XmlReader.Create(StatsFileName))
+                    {
+                        IExtendedXmlSerializer serializer = new ConfigurationContainer().Create();
+                        result = (Stats)serializer.Deserialize(reader);
+                    }
+                }
+            } catch (Exception e)
+            {
+                MainWindow.handleError("Error during read file (stats.xml)", e, false);
             }
             return (result != null ? result : new Stats());            
         }
 
         public static Settings LoadSettings()
         {
-            if (File.Exists(SettingsFileName)) {
-                using (XmlReader reader = XmlReader.Create(SettingsFileName))
-                {
-                    IExtendedXmlSerializer serializer = new ConfigurationContainer().Create();
-                    return (Settings)serializer.Deserialize(reader);
-                }                
-            } else
+            try
             {
-                //creating example conf
-                using (var writer = XmlWriter.Create(SettingsFileName, xmlWriterSettings))
+                if (File.Exists(SettingsFileName))
                 {
-                    IExtendedXmlSerializer serializer = new ConfigurationContainer().Create();
-                    Settings exampleSettings = new Settings();
-                    exampleSettings.initDefaultSettings();
-                    serializer.Serialize(writer, exampleSettings);
-                    writer.Flush();
-                }               
+                    using (XmlReader reader = XmlReader.Create(SettingsFileName))
+                    {
+                        IExtendedXmlSerializer serializer = new ConfigurationContainer().Create();
+                        return (Settings)serializer.Deserialize(reader);
+                    }
+                }
+                else
+                {
+                    //creating example conf
+                    using (var writer = XmlWriter.Create(SettingsFileName, xmlWriterSettings))
+                    {
+                        IExtendedXmlSerializer serializer = new ConfigurationContainer().Create();
+                        Settings exampleSettings = new Settings();
+                        exampleSettings.initDefaultSettings();
+                        serializer.Serialize(writer, exampleSettings);
+                        writer.Flush();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                MainWindow.handleError("Error during write file (stats.xml)", e, false);
             }
             return null;
         }

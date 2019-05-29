@@ -13,6 +13,8 @@ namespace ArcadeMgr.config
         public string group;
         public string subgroup;
         public string message;
+        //for internal purposes only, do not use it
+        public long count;
 
         public KeyMap() { }
 
