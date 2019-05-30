@@ -11,6 +11,7 @@ namespace ArcadeMgr.config
     {
         public string portName;
         public int baudRate;
+        public int startDelay;
         public string startMessage;
         public string stopMessage;
         public Dictionary<Keys,KeyMap> keyMap = new Dictionary<Keys, KeyMap>();
@@ -19,6 +20,7 @@ namespace ArcadeMgr.config
         {
             portName = "COMX";
             baudRate = 115200;
+            startDelay = 5;
             startMessage = "n"; //on
             stopMessage = "f"; //off
             //default jpac2 keymap

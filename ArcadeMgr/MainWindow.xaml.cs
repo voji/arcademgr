@@ -1,4 +1,5 @@
 ﻿using ArcadeMgr.config;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -33,7 +34,7 @@ namespace ArcadeMgr
         static TimeSpan globalTimeElapsed;
         static long globalKeypress;
         static long localKeypress;
-        private static DispatcherTimer timer;
+        private static DispatcherTimer uiTimer;
         private static InterceptKeys.LowLevelKeyboardProc lowLevelKeyboardProcessor = KeyDownCallback;
         private static KeyMap[] keyMap = null;
         public MainWindow()
@@ -44,7 +45,7 @@ namespace ArcadeMgr
             settings = ConfigHelper.LoadSettings();
             if (settings == null)
             {
-                handleError("Default configuration file created, please review it. Application now exit.", null, true);
+                HandleError("Default configuration file created, please review it. Application now exit.", null, true);
             }
             if (!string.IsNullOrEmpty(settings.portName))
             {
@@ -54,15 +55,11 @@ namespace ArcadeMgr
                     port.Open();
                 } catch (Exception ex)
                 {
-                    handleError("Unable to open COMmunication port. See exception.log from details. Application now exit.", ex, true);
+                    HandleError("Unable to open COMmunication port. See exception.log from details. Application now exit.", ex, true);
                 }
 
             }
-            string startMessage = settings.startMessage;
-            if (port != null && !string.IsNullOrEmpty(startMessage))
-            {
-                port.Write(startMessage);
-            }
+            
             //populate keymap
             int maxKeyCode = 0;
             foreach (Keys key in settings.keyMap.Keys)
@@ -78,35 +75,43 @@ namespace ArcadeMgr
                 keyMap[keyCode] = keyRec.Value;
             }
 
+            //load stats
             stats = ConfigHelper.LoadStats();
             globalTimeElapsed = TimeSpan.FromSeconds(stats.seconds);
             globalKeypress = stats.globalKeyPressCount();
-            timer = new DispatcherTimer
+
+            //init keyboard hook
+            AppDomain.CurrentDomain.ProcessExit += new EventHandler(CurrentDomain_ProcessExit);
+            SystemEvents.SessionEnding += new SessionEndingEventHandler(SystemEvents_SessionEnding);
+            InterceptKeys.SetHook(lowLevelKeyboardProcessor);
+
+            //ui refresh timer
+            uiTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(1)
             };
-            timer.Tick += Timer_Tick;
-            timer.Stop();
-            InterceptKeys.SetHook(lowLevelKeyboardProcessor);
-            AppDomain.CurrentDomain.ProcessExit += new EventHandler(OnProcessExit);
+            uiTimer.Tick += Timer_Tick;
+            uiTimer.Stop();
             this.StateChanged += MainWindow_StateChanged;
+
+            //delayed startup
+            ExecuteStartup(settings.startDelay * 1000);
         }
 
-      
         private void MainWindow_StateChanged(object sender, EventArgs e)
         {
             switch (this.WindowState)
             {
                 case WindowState.Maximized:
                     Timer_Tick(null, null);
-                    timer.Start();
+                    uiTimer.Start();
                     break;
                 case WindowState.Minimized:
-                    timer.Stop();
+                    uiTimer.Stop();
                     break;
                 case WindowState.Normal:
                     Timer_Tick(null, null);
-                    timer.Start();
+                    uiTimer.Start();
                     break;
             }
         }
@@ -115,15 +120,36 @@ namespace ArcadeMgr
         {
             DateTime currentTime = DateTime.Now;
             TimeSpan timeTaken = currentTime.Subtract(startTime);
-            labelLUptimeVal.Content = tsToText(timeTaken);
+            labelLUptimeVal.Content = TimeSpanToString(timeTaken);
             TimeSpan globalTs = timeTaken.Add(globalTimeElapsed);
-            labelGUptimeVal.Content = tsToText(globalTs);
+            labelGUptimeVal.Content = TimeSpanToString(globalTs);
             labelLKeypressVal.Content = localKeypress;
             labelGKeypressVal.Content = globalKeypress + localKeypress;
 
         }
 
-        private string tsToText(TimeSpan timeSpan)
+        public async void ExecuteStartup(int timeoutInMilliseconds)
+        {
+            await Task.Delay(timeoutInMilliseconds);
+            string startMessage = settings.startMessage;
+            if (port != null && !string.IsNullOrEmpty(startMessage))
+            {
+                WriteToPort(startMessage);
+            }
+        }
+
+        private static void WriteToPort(String message)
+        {
+            try
+            {
+                port.Write(message);
+            } catch (Exception e)
+            {
+                HandleError("Error durig write message (" + message +") to COM port", e, true);
+            }
+        }
+
+        private string TimeSpanToString(TimeSpan timeSpan)
         {
             object[] args = new object[] {
             timeSpan.Days,
@@ -135,13 +161,24 @@ namespace ArcadeMgr
 
         }
 
-        static void OnProcessExit(object sender, EventArgs e)
+        private void SystemEvents_SessionEnding(object sender, SessionEndingEventArgs e)
+        {
+            OnAppClose();
+            e.Cancel = false;
+        }
+
+        private void CurrentDomain_ProcessExit(object sender, EventArgs e)
+        {
+            OnAppClose();
+        }
+
+        private void OnAppClose()
         {
             InterceptKeys.ReleaseHook();
             string stopMessage = settings.stopMessage;
             if (port != null && !string.IsNullOrEmpty(stopMessage))
             {
-                port.Write(stopMessage);
+                WriteToPort(stopMessage);
             }
             DateTime endTime = DateTime.Now;
             TimeSpan totalTimeTaken = endTime.Subtract(startTime);
@@ -172,7 +209,7 @@ namespace ArcadeMgr
                     string message = mapItem.message;
                     if (port != null && !string.IsNullOrEmpty(message))
                     {
-                        port.Write(message);
+                        WriteToPort(message);
                     }
                     mapItem.count++;
                     localKeypress++;
@@ -182,16 +219,16 @@ namespace ArcadeMgr
         }
 
         void Dispatcher_UnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e) {
-            handleError("Unhandled error", e.Exception, false);
+            HandleError("Unhandled error", e.Exception, false);
         }
 
         private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            handleError("Unhandled error", (Exception)e.ExceptionObject, false);
+            HandleError("Unhandled error", (Exception)e.ExceptionObject, false);
         }
 
 
-        public static void handleError(String message, Exception ex, bool terminate)
+        public static void HandleError(String message, Exception ex, bool terminate)
         {
             if (ex != null) {
                 using (StreamWriter writer = new StreamWriter("exception.log", false))
@@ -236,7 +273,7 @@ namespace ArcadeMgr
                         long count;
                         stats.keyStats.TryGetValue(key, out count);
                         statData[4] = (keyMap.count + count).ToString();
-                        String line = createCsvLine(statData);
+                        String line = CreateCsvLine(statData);
                         file.WriteLine(line);
                     }
                 }
@@ -246,11 +283,11 @@ namespace ArcadeMgr
                                               MessageBoxImage.Information);
             } catch (Exception ex)
             {
-                handleError("Unable to write file (keystat.csv)", ex, false);
+                HandleError("Unable to write file (keystat.csv)", ex, false);
             }
         }
 
-        private string createCsvLine(string[] cparams)
+        private string CreateCsvLine(string[] cparams)
         {
             string result = "";
             foreach (string param in cparams) {

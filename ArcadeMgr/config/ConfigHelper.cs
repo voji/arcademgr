@@ -29,7 +29,7 @@ namespace ArcadeMgr.config
                 }
             } catch (Exception e)
             {
-                MainWindow.handleError("Error during write file (stats.xml)", e, false);
+                MainWindow.HandleError("Error during write file (stats.xml)", e, false);
             }
         }
 
@@ -48,7 +48,7 @@ namespace ArcadeMgr.config
                 }
             } catch (Exception e)
             {
-                MainWindow.handleError("Error during read file (stats.xml)", e, false);
+                MainWindow.HandleError("Error during read file (stats.xml)", e, false);
             }
             return (result != null ? result : new Stats());            
         }
@@ -80,7 +80,7 @@ namespace ArcadeMgr.config
             }
             catch (Exception e)
             {
-                MainWindow.handleError("Error during write file (stats.xml)", e, false);
+                MainWindow.HandleError("Error during write file (stats.xml)", e, false);
             }
             return null;
         }
